@@ -14,6 +14,7 @@ import ContextMenu from '@/components/ContextMenu.vue'
 import TagFormDialog from '@/components/TagFormDialog.vue'
 import ReviewDrawer from '@/components/ReviewDrawer.vue'
 import ShortcutBar from '@/components/ShortcutBar.vue'
+import BatchActionBar from '@/components/BatchActionBar.vue'
 
 const roleStore = useRoleStore()
 const tagStore = useTagStore()
@@ -27,6 +28,7 @@ const formVisible = ref(false)
 const editTagId = ref<string | null>(null)
 const reviewVisible = ref(false)
 const searchBarRef = ref<InstanceType<typeof SearchBar> | null>(null)
+const multiSelectMode = ref(false)
 
 const filteredTags = computed(() =>
   tagStore.searchTags(searchQuery.value, statusFilter.value || undefined)
@@ -36,8 +38,44 @@ const selectedTag = computed(() =>
   selectedTagId.value ? tagStore.getTagById(selectedTagId.value) : null
 )
 
-function selectTag(id: string) {
+const tagIdList = computed(() => filteredTags.value.map((t) => t.id))
+
+function selectTag(id: string, event?: MouseEvent) {
+  if (multiSelectMode.value && event) {
+    handleMultiSelect(id, event)
+  } else {
+    selectedTagId.value = id
+    if (!multiSelectMode.value) {
+      tagStore.deselectAll()
+    }
+  }
+}
+
+function handleMultiSelect(id: string, event: MouseEvent) {
+  const currentIndex = tagIdList.value.indexOf(id)
+
+  if (event.shiftKey && tagStore.lastSelectedIndex !== null && currentIndex !== -1) {
+    const start = Math.min(tagStore.lastSelectedIndex, currentIndex)
+    const end = Math.max(tagStore.lastSelectedIndex, currentIndex)
+    const rangeIds = tagIdList.value.slice(start, end + 1)
+    rangeIds.forEach((tid) => tagStore.selectTag(tid))
+  } else if (event.ctrlKey || event.metaKey) {
+    tagStore.toggleTagSelection(id)
+  } else {
+    tagStore.deselectAll()
+    tagStore.selectTag(id)
+  }
+
+  tagStore.lastSelectedIndex = currentIndex !== -1 ? currentIndex : null
   selectedTagId.value = id
+}
+
+function toggleCardSelection(id: string) {
+  tagStore.toggleTagSelection(id)
+  const idx = tagIdList.value.indexOf(id)
+  if (idx !== -1) {
+    tagStore.lastSelectedIndex = idx
+  }
 }
 
 function openForm(tagId?: string) {
@@ -89,7 +127,16 @@ async function handleMenuAction(key: string, tagId: string) {
 
 function toggleSelectedStatus() {
   if (roleStore.currentRole !== 'assistant') return
-  if (selectedTagId.value) {
+  if (multiSelectMode.value && tagStore.hasSelection) {
+    const ids = tagStore.selectedTags.map((t) => t.id)
+    const firstTag = tagStore.selectedTags[0]
+    const targetStatus = firstTag?.status === 'on_shelf' ? 'off_shelf' : 'on_shelf'
+    tagStore.batchToggleStatus(ids, targetStatus)
+    ElMessage.success({
+      message: targetStatus === 'on_shelf' ? '已批量上架' : '已批量下架',
+      duration: 1500,
+    })
+  } else if (selectedTagId.value) {
     const tag = tagStore.getTagById(selectedTagId.value)
     if (!tag) return
     if (tag.status === 'under_review' || tag.status === 'hidden' || tag.isHidden) {
@@ -102,6 +149,13 @@ function toggleSelectedStatus() {
       message: updatedTag?.status === 'on_shelf' ? '已上架' : '已下架',
       duration: 1500,
     })
+  }
+}
+
+function toggleMultiSelectMode() {
+  multiSelectMode.value = !multiSelectMode.value
+  if (!multiSelectMode.value) {
+    tagStore.deselectAll()
   }
 }
 
@@ -118,8 +172,6 @@ async function handleDelete() {
     ElMessage.success({ message: '短签已删除', duration: 1500 })
   } catch {}
 }
-
-const tagIdList = computed(() => filteredTags.value.map((t) => t.id))
 
 useKeyboard({
   onNew: () => openForm(),
@@ -147,6 +199,9 @@ useKeyboard({
     closeMenu()
     formVisible.value = false
     reviewVisible.value = false
+    if (multiSelectMode.value) {
+      tagStore.deselectAll()
+    }
   },
   onArrowUp: () => {
     if (tagIdList.value.length === 0) return
@@ -163,6 +218,13 @@ useKeyboard({
   onEnter: () => {
     if (selectedTagId.value && roleStore.currentRole === 'manager') {
       openForm(selectedTagId.value)
+    }
+  },
+  onToggleMultiSelect: toggleMultiSelectMode,
+  onSelectAll: () => {
+    if (multiSelectMode.value) {
+      const ids = filteredTags.value.map((t) => t.id)
+      tagStore.selectAll(ids)
     }
   },
 })
@@ -231,6 +293,15 @@ const reviewCount = computed(() => tagStore.reviewTags.length)
             </el-button>
           </el-badge>
         </template>
+
+        <el-button
+          v-if="roleStore.currentRole === 'manager' || roleStore.currentRole === 'assistant'"
+          :type="multiSelectMode ? 'primary' : 'default'"
+          class="batch-mode-btn"
+          @click="toggleMultiSelectMode"
+        >
+          {{ multiSelectMode ? '退出批量' : '批量整理' }}
+        </el-button>
       </div>
     </header>
 
@@ -241,48 +312,57 @@ const reviewCount = computed(() => tagStore.reviewTags.length)
         <p v-if="roleStore.currentRole === 'manager'">按 Ctrl+N 创建第一个短签</p>
       </div>
 
-      <div v-else class="tag-grid">
-        <TransitionGroup name="grid">
-          <TagCard
-            v-for="tag in filteredTags"
-            :key="tag.id"
-            :tag="tag"
-            :selected="tag.id === selectedTagId"
-            :data-tag-id="tag.id"
-            @click="selectTag(tag.id)"
-            @contextmenu="handleCardContextmenu($event, tag.id)"
-          />
-        </TransitionGroup>
-      </div>
+      <div v-else class="main-content">
+        <BatchActionBar
+          v-if="multiSelectMode"
+          :total-count="filteredTags.length"
+        />
 
-      <div v-if="selectedTag && roleStore.currentRole === 'manager'" class="detail-panel">
-        <div class="detail-header">
-          <h3>{{ selectedTag.name }}</h3>
-          <div class="detail-actions">
-            <el-button size="small" @click="openForm(selectedTag.id)">编辑</el-button>
-            <el-button size="small" type="danger" plain @click="handleDelete">删除</el-button>
-          </div>
+        <div class="tag-grid">
+          <TransitionGroup name="grid">
+            <TagCard
+              v-for="tag in filteredTags"
+              :key="tag.id"
+              :tag="tag"
+              :selected="multiSelectMode ? tagStore.isTagSelected(tag.id) : tag.id === selectedTagId"
+              :multi-select-mode="multiSelectMode"
+              :data-tag-id="tag.id"
+              @click="selectTag(tag.id, $event)"
+              @contextmenu="handleCardContextmenu($event, tag.id)"
+              @toggle-select="toggleCardSelection(tag.id)"
+            />
+          </TransitionGroup>
         </div>
-        <div class="detail-body">
-          <div class="detail-row">
-            <span class="detail-label">编号</span>
-            <span>{{ selectedTag.code }}</span>
+
+        <div v-if="selectedTag && roleStore.currentRole === 'manager' && !multiSelectMode" class="detail-panel">
+          <div class="detail-header">
+            <h3>{{ selectedTag.name }}</h3>
+            <div class="detail-actions">
+              <el-button size="small" @click="openForm(selectedTag.id)">编辑</el-button>
+              <el-button size="small" type="danger" plain @click="handleDelete">删除</el-button>
+            </div>
           </div>
-          <div class="detail-row">
-            <span class="detail-label">分类</span>
-            <span>{{ selectedTag.category }}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">价格</span>
-            <span>¥{{ selectedTag.price.toFixed(2) }}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">描述</span>
-            <span>{{ selectedTag.description }}</span>
-          </div>
-          <div v-if="selectedTag.riskNote" class="detail-row risk">
-            <span class="detail-label">风险</span>
-            <span>⚠ {{ selectedTag.riskNote }}</span>
+          <div class="detail-body">
+            <div class="detail-row">
+              <span class="detail-label">编号</span>
+              <span>{{ selectedTag.code }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">分类</span>
+              <span>{{ selectedTag.category }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">价格</span>
+              <span>¥{{ selectedTag.price.toFixed(2) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">描述</span>
+              <span>{{ selectedTag.description }}</span>
+            </div>
+            <div v-if="selectedTag.riskNote" class="detail-row risk">
+              <span class="detail-label">风险</span>
+              <span>⚠ {{ selectedTag.riskNote }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -392,11 +472,33 @@ const reviewCount = computed(() => tagStore.reviewTags.length)
   }
 }
 
+.batch-mode-btn {
+  border-radius: $radius-md;
+  font-family: $font-body;
+  font-weight: 500;
+
+  &.el-button--primary {
+    background-color: $color-warm-brown;
+    border-color: $color-warm-brown;
+
+    &:hover {
+      background-color: lighten($color-warm-brown, 8%);
+    }
+  }
+}
+
 .app-main {
   flex: 1;
   padding: 28px 32px;
   display: flex;
   gap: 24px;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  gap: 24px;
+  flex-direction: column;
 }
 
 .empty-state {

@@ -2,14 +2,16 @@
 import type { MaterialTag } from '@/types'
 import { STATUS_LABELS } from '@/types'
 
-defineProps<{
+const props = defineProps<{
   tag: MaterialTag
   selected: boolean
+  multiSelectMode?: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   contextmenu: [e: MouseEvent]
   click: []
+  toggleSelect: []
 }>()
 
 const statusColors: Record<string, string> = {
@@ -18,14 +20,25 @@ const statusColors: Record<string, string> = {
   under_review: 'under-review',
   hidden: 'hidden',
 }
+
+function handleCheckboxClick(e: MouseEvent) {
+  e.stopPropagation()
+  emit('toggleSelect')
+}
 </script>
 
 <template>
   <div
-    :class="['tag-card', { selected, featured: tag.isFeatured }]"
+    :class="['tag-card', { selected, featured: tag.isFeatured, 'multi-select': multiSelectMode }]"
     @click="$emit('click')"
     @contextmenu="$emit('contextmenu', $event)"
   >
+    <div v-if="multiSelectMode" class="checkbox-wrapper" @click="handleCheckboxClick">
+      <div :class="['card-checkbox', { checked: selected }]">
+        <span v-if="selected" class="check-icon">✓</span>
+      </div>
+    </div>
+
     <div class="card-header">
       <span class="tag-code">{{ tag.code }}</span>
       <span :class="['status-badge', statusColors[tag.status]]">
@@ -67,6 +80,10 @@ const statusColors: Record<string, string> = {
   transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   position: relative;
   overflow: hidden;
+
+  &.multi-select {
+    padding-left: 52px;
+  }
 
   &::before {
     content: '';
@@ -226,5 +243,41 @@ const statusColors: Record<string, string> = {
 .tag-date {
   font-size: 11px;
   color: $color-smoke;
+}
+
+.checkbox-wrapper {
+  position: absolute;
+  left: 16px;
+  top: 20px;
+  z-index: 2;
+}
+
+.card-checkbox {
+  width: 20px;
+  height: 20px;
+  border: 2px solid $color-border;
+  border-radius: 4px;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+
+  &:hover {
+    border-color: $color-warm-brown;
+  }
+
+  &.checked {
+    background: $color-warm-brown;
+    border-color: $color-warm-brown;
+  }
+}
+
+.check-icon {
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1;
 }
 </style>

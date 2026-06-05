@@ -21,6 +21,8 @@ function saveTags(tags: MaterialTag[]) {
 
 export const useTagStore = defineStore('tag', () => {
   const tags = ref<MaterialTag[]>(loadTags())
+  const selectedTagIds = ref<Set<string>>(new Set())
+  const lastSelectedIndex = ref<number | null>(null)
 
   const visibleTags = computed(() =>
     tags.value.filter((t) => !t.isHidden)
@@ -34,8 +36,90 @@ export const useTagStore = defineStore('tag', () => {
     tags.value.filter((t) => t.isFeatured && !t.isHidden)
   )
 
+  const selectedTags = computed(() =>
+    tags.value.filter((t) => selectedTagIds.value.has(t.id))
+  )
+
+  const selectedCount = computed(() => selectedTagIds.value.size)
+
+  const hasSelection = computed(() => selectedTagIds.value.size > 0)
+
   function persist() {
     saveTags(tags.value)
+  }
+
+  function selectTag(id: string) {
+    selectedTagIds.value.add(id)
+  }
+
+  function deselectTag(id: string) {
+    selectedTagIds.value.delete(id)
+  }
+
+  function toggleTagSelection(id: string) {
+    if (selectedTagIds.value.has(id)) {
+      selectedTagIds.value.delete(id)
+    } else {
+      selectedTagIds.value.add(id)
+    }
+  }
+
+  function selectAll(ids: string[]) {
+    selectedTagIds.value = new Set(ids)
+  }
+
+  function deselectAll() {
+    selectedTagIds.value.clear()
+    lastSelectedIndex.value = null
+  }
+
+  function isTagSelected(id: string): boolean {
+    return selectedTagIds.value.has(id)
+  }
+
+  function batchToggleStatus(ids: string[], targetStatus: 'on_shelf' | 'off_shelf') {
+    const now = new Date().toISOString().slice(0, 10)
+    ids.forEach((id) => {
+      const tag = tags.value.find((t) => t.id === id)
+      if (tag && tag.status !== 'under_review' && tag.status !== 'hidden' && !tag.isHidden) {
+        tag.status = targetStatus
+        tag.updatedAt = now
+      }
+    })
+    persist()
+  }
+
+  function batchMoveToReview(ids: string[]) {
+    const now = new Date().toISOString().slice(0, 10)
+    ids.forEach((id) => {
+      const tag = tags.value.find((t) => t.id === id)
+      if (tag) {
+        tag.needsReview = true
+        tag.status = 'under_review'
+        tag.isHidden = false
+        tag.updatedAt = now
+      }
+    })
+    persist()
+  }
+
+  function batchHideTags(ids: string[]) {
+    const now = new Date().toISOString().slice(0, 10)
+    ids.forEach((id) => {
+      const tag = tags.value.find((t) => t.id === id)
+      if (tag) {
+        tag.isHidden = true
+        tag.status = 'hidden'
+        tag.updatedAt = now
+      }
+    })
+    persist()
+  }
+
+  function getSelectedSummary(): string {
+    return selectedTags.value
+      .map((tag) => `${tag.name} (${tag.code})\n分类: ${tag.category}\n价格: ¥${tag.price.toFixed(2)}\n${tag.description}`)
+      .join('\n\n---\n\n')
   }
 
   function addTag(tag: Omit<MaterialTag, 'id' | 'createdAt' | 'updatedAt' | 'isFeatured' | 'isHidden' | 'needsReview'>) {
@@ -181,6 +265,10 @@ export const useTagStore = defineStore('tag', () => {
     visibleTags,
     reviewTags,
     featuredTags,
+    selectedTags,
+    selectedCount,
+    hasSelection,
+    lastSelectedIndex,
     addTag,
     updateTag,
     deleteTag,
@@ -193,5 +281,15 @@ export const useTagStore = defineStore('tag', () => {
     rejectReview,
     searchTags,
     getTagById,
+    selectTag,
+    deselectTag,
+    toggleTagSelection,
+    selectAll,
+    deselectAll,
+    isTagSelected,
+    batchToggleStatus,
+    batchMoveToReview,
+    batchHideTags,
+    getSelectedSummary,
   }
 })

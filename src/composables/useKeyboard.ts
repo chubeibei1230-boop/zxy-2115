@@ -10,6 +10,8 @@ interface KeyboardBindings {
   onArrowUp?: () => void
   onArrowDown?: () => void
   onEnter?: () => void
+  onToggleMultiSelect?: () => void
+  onSelectAll?: () => void
 }
 
 export function useKeyboard(bindings: KeyboardBindings) {
@@ -41,6 +43,14 @@ export function useKeyboard(bindings: KeyboardBindings) {
         case 'm':
           e.preventDefault()
           bindings.onContextMenu?.()
+          return
+        case 'b':
+          e.preventDefault()
+          bindings.onToggleMultiSelect?.()
+          return
+        case 'a':
+          e.preventDefault()
+          bindings.onSelectAll?.()
           return
       }
     }

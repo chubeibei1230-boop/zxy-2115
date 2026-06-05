@@ -17,6 +17,9 @@ const shortcuts = computed(() => {
   if (role === 'manager') {
     return [
       { key: 'Ctrl+N', desc: '新增短签' },
+      { key: 'Ctrl+B', desc: '批量整理' },
+      { key: 'Shift+点击', desc: '连续选择' },
+      { key: 'Ctrl+A', desc: '全选' },
       ...base,
     ]
   }
@@ -24,6 +27,8 @@ const shortcuts = computed(() => {
   if (role === 'assistant') {
     return [
       { key: '空格', desc: '切换上架' },
+      { key: 'Ctrl+B', desc: '批量整理' },
+      { key: 'Shift+点击', desc: '连续选择' },
       ...base,
     ]
   }
