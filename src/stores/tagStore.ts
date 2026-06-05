@@ -56,9 +56,22 @@ export const useTagStore = defineStore('tag', () => {
   function updateTag(id: string, data: Partial<MaterialTag>) {
     const idx = tags.value.findIndex((t) => t.id === id)
     if (idx !== -1) {
+      const merged: Partial<MaterialTag> = { ...data }
+      if (merged.status) {
+        if (merged.status === 'under_review') {
+          merged.needsReview = true
+        } else {
+          merged.needsReview = false
+        }
+        if (merged.status === 'hidden') {
+          merged.isHidden = true
+        } else {
+          merged.isHidden = false
+        }
+      }
       tags.value[idx] = {
         ...tags.value[idx],
-        ...data,
+        ...merged,
         updatedAt: new Date().toISOString().slice(0, 10),
       }
       persist()
@@ -79,9 +92,12 @@ export const useTagStore = defineStore('tag', () => {
     }
   }
 
-  function toggleStatus(id: string) {
+  function toggleStatus(id: string, allowAll: boolean = false) {
     const tag = tags.value.find((t) => t.id === id)
     if (tag) {
+      if (!allowAll && (tag.status === 'under_review' || tag.status === 'hidden' || tag.isHidden)) {
+        return
+      }
       tag.status = tag.status === 'on_shelf' ? 'off_shelf' : 'on_shelf'
       tag.updatedAt = new Date().toISOString().slice(0, 10)
       persist()
@@ -93,6 +109,7 @@ export const useTagStore = defineStore('tag', () => {
     if (tag) {
       tag.needsReview = true
       tag.status = 'under_review'
+      tag.isHidden = false
       tag.updatedAt = new Date().toISOString().slice(0, 10)
       persist()
     }
@@ -123,6 +140,7 @@ export const useTagStore = defineStore('tag', () => {
     if (tag) {
       tag.needsReview = false
       tag.status = 'on_shelf'
+      tag.isHidden = false
       tag.updatedAt = new Date().toISOString().slice(0, 10)
       persist()
     }
@@ -133,6 +151,7 @@ export const useTagStore = defineStore('tag', () => {
     if (tag) {
       tag.needsReview = false
       tag.status = 'off_shelf'
+      tag.isHidden = false
       tag.updatedAt = new Date().toISOString().slice(0, 10)
       persist()
     }

@@ -90,10 +90,16 @@ async function handleMenuAction(key: string, tagId: string) {
 function toggleSelectedStatus() {
   if (roleStore.currentRole !== 'assistant') return
   if (selectedTagId.value) {
-    tagStore.toggleStatus(selectedTagId.value)
     const tag = tagStore.getTagById(selectedTagId.value)
+    if (!tag) return
+    if (tag.status === 'under_review' || tag.status === 'hidden' || tag.isHidden) {
+      ElMessage.warning({ message: '待复核或已隐藏条目不可直接切换状态', duration: 2000 })
+      return
+    }
+    tagStore.toggleStatus(selectedTagId.value)
+    const updatedTag = tagStore.getTagById(selectedTagId.value)
     ElMessage.success({
-      message: tag?.status === 'on_shelf' ? '已上架' : '已下架',
+      message: updatedTag?.status === 'on_shelf' ? '已上架' : '已下架',
       duration: 1500,
     })
   }
@@ -215,14 +221,16 @@ const reviewCount = computed(() => tagStore.reviewTags.length)
           + 新增短签
         </el-button>
 
-        <el-badge :value="reviewCount" :hidden="reviewCount === 0">
-          <el-button
-            class="review-btn"
-            @click="reviewVisible = true"
-          >
-            复核队列
-          </el-button>
-        </el-badge>
+        <template v-if="roleStore.currentRole === 'reviewer'">
+          <el-badge :value="reviewCount" :hidden="reviewCount === 0">
+            <el-button
+              class="review-btn"
+              @click="reviewVisible = true"
+            >
+              复核队列
+            </el-button>
+          </el-badge>
+        </template>
       </div>
     </header>
 
