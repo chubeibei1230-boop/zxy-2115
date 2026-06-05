@@ -1,0 +1,70 @@
+@use './variables' as *;
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: $font-body;
+  background-color: $color-cream;
+  color: $color-dark;
+  line-height: 1.6;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(139, 111, 78, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(196, 112, 75, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(107, 142, 107, 0.03) 0%, transparent 50%);
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.025'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+#app {
+  position: relative;
+  z-index: 1;
+}
+
+::selection {
+  background-color: rgba(139, 111, 78, 0.2);
+  color: $color-dark;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: $color-border;
+  border-radius: 3px;
+
+  &:hover {
+    background-color: $color-warm-brown;
+  }
+}
+
+.el-message {
+  font-family: $font-body !important;
+}
+
+.el-overlay {
+  backdrop-filter: blur(2px);
+}

@@ -1,0 +1,35 @@
+$color-warm-brown: #8B6F4E;
+$color-cream: #FDF6EC;
+$color-terracotta: #C4704B;
+$color-moss-green: #6B8E6B;
+$color-smoke: #9B9B9B;
+$color-dark: #3D2E1F;
+$color-card-bg: #FFFAF2;
+$color-border: #E8D5C0;
+$color-hover: #F5EBD9;
+
+$font-display: 'Playfair Display', Georgia, serif;
+$font-body: 'Noto Sans SC', sans-serif;
+
+$radius-sm: 6px;
+$radius-md: 10px;
+$radius-lg: 16px;
+
+$shadow-sm: 0 1px 3px rgba(61, 46, 31, 0.08);
+$shadow-md: 0 4px 12px rgba(61, 46, 31, 0.1);
+$shadow-lg: 0 8px 24px rgba(61, 46, 31, 0.12);
+$shadow-hover: 0 6px 20px rgba(61, 46, 31, 0.15);
+
+:root {
+  --color-warm-brown: #{$color-warm-brown};
+  --color-cream: #{$color-cream};
+  --color-terracotta: #{$color-terracotta};
+  --color-moss-green: #{$color-moss-green};
+  --color-smoke: #{$color-smoke};
+  --color-dark: #{$color-dark};
+  --color-card-bg: #{$color-card-bg};
+  --color-border: #{$color-border};
+  --color-hover: #{$color-hover};
+  --font-display: #{$font-display};
+  --font-body: #{$font-body};
+}
