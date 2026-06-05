@@ -73,6 +73,12 @@ export const useTagStore = defineStore('tag', () => {
     lastSelectedIndex.value = null
   }
 
+  function cleanupInvalidSelections(validIds: string[]) {
+    const validSet = new Set(validIds)
+    const invalidIds = Array.from(selectedTagIds.value).filter((id) => !validSet.has(id))
+    invalidIds.forEach((id) => selectedTagIds.value.delete(id))
+  }
+
   function isTagSelected(id: string): boolean {
     return selectedTagIds.value.has(id)
   }
@@ -87,6 +93,7 @@ export const useTagStore = defineStore('tag', () => {
       }
     })
     persist()
+    cleanupInvalidSelections(visibleTags.value.map((t) => t.id))
   }
 
   function batchMoveToReview(ids: string[]) {
@@ -101,6 +108,7 @@ export const useTagStore = defineStore('tag', () => {
       }
     })
     persist()
+    cleanupInvalidSelections(visibleTags.value.map((t) => t.id))
   }
 
   function batchHideTags(ids: string[]) {
@@ -114,6 +122,7 @@ export const useTagStore = defineStore('tag', () => {
       }
     })
     persist()
+    cleanupInvalidSelections(visibleTags.value.map((t) => t.id))
   }
 
   function getSelectedSummary(): string {
@@ -286,6 +295,7 @@ export const useTagStore = defineStore('tag', () => {
     toggleTagSelection,
     selectAll,
     deselectAll,
+    cleanupInvalidSelections,
     isTagSelected,
     batchToggleStatus,
     batchMoveToReview,

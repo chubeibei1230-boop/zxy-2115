@@ -34,6 +34,10 @@ const riskCount = computed(() =>
   tagStore.selectedTags.filter((t) => t.riskNote && t.riskNote.trim()).length
 )
 
+const riskTags = computed(() =>
+  tagStore.selectedTags.filter((t) => t.riskNote && t.riskNote.trim())
+)
+
 const underReviewCount = computed(() =>
   tagStore.selectedTags.filter((t) => t.status === 'under_review').length
 )
@@ -102,16 +106,29 @@ async function handleBatchOffShelf() {
 }
 
 async function handleBatchMoveToReview() {
+  let confirmMessage = `确定将选中的 ${selectedCount.value} 条短签移入复核队列吗？`
+  
+  if (riskCount.value > 0) {
+    const riskList = riskTags.value
+      .map((t) => `  · ${t.name} (${t.code}): ${t.riskNote}`)
+      .join('\n')
+    confirmMessage += `\n\n⚠ 以下 ${riskCount.value} 条短签含风险提示：\n${riskList}`
+  }
+  
+  if (hiddenCount.value > 0) {
+    confirmMessage += `\n\nℹ 其中 ${hiddenCount.value} 条已隐藏条目将在移入后重新显示。`
+  }
+
   try {
-    await ElMessageBox.confirm(
-      `确定将选中的 ${selectedCount.value} 条短签移入复核队列吗？`,
-      '批量移入复核确认',
-      {
-        confirmButtonText: '确定移入',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    )
+    await ElMessageBox.confirm(confirmMessage, '批量移入复核确认', {
+      confirmButtonText: '确定移入',
+      cancelButtonText: '取消',
+      type: riskCount.value > 0 ? 'warning' : 'info',
+      dangerouslyUseHTMLString: false,
+      customStyle: {
+        whiteSpace: 'pre-line',
+      },
+    })
   } catch {
     return
   }

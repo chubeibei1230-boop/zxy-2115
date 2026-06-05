@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import type { TagStatus } from '@/types'
 import { useRoleStore } from '@/stores/roleStore'
 import { useTagStore } from '@/stores/tagStore'
@@ -53,20 +53,36 @@ function selectTag(id: string, event?: MouseEvent) {
 
 function handleMultiSelect(id: string, event: MouseEvent) {
   const currentIndex = tagIdList.value.indexOf(id)
+  const isCurrentlySelected = tagStore.isTagSelected(id)
 
   if (event.shiftKey && tagStore.lastSelectedIndex !== null && currentIndex !== -1) {
     const start = Math.min(tagStore.lastSelectedIndex, currentIndex)
     const end = Math.max(tagStore.lastSelectedIndex, currentIndex)
     const rangeIds = tagIdList.value.slice(start, end + 1)
-    rangeIds.forEach((tid) => tagStore.selectTag(tid))
+    
+    const anchorSelected = tagStore.isTagSelected(tagIdList.value[tagStore.lastSelectedIndex])
+    rangeIds.forEach((tid) => {
+      if (anchorSelected) {
+        tagStore.selectTag(tid)
+      } else {
+        tagStore.deselectTag(tid)
+      }
+    })
   } else if (event.ctrlKey || event.metaKey) {
     tagStore.toggleTagSelection(id)
+    if (currentIndex !== -1) {
+      tagStore.lastSelectedIndex = currentIndex
+    }
   } else {
-    tagStore.deselectAll()
-    tagStore.selectTag(id)
+    tagStore.toggleTagSelection(id)
+    if (currentIndex !== -1) {
+      tagStore.lastSelectedIndex = currentIndex
+    }
   }
 
-  tagStore.lastSelectedIndex = currentIndex !== -1 ? currentIndex : null
+  if (currentIndex !== -1 && !event.shiftKey) {
+    tagStore.lastSelectedIndex = currentIndex
+  }
   selectedTagId.value = id
 }
 
@@ -242,6 +258,15 @@ const statusOptions = [
 ]
 
 const reviewCount = computed(() => tagStore.reviewTags.length)
+
+watch(
+  () => tagIdList.value,
+  (newIds) => {
+    if (multiSelectMode.value) {
+      tagStore.cleanupInvalidSelections(newIds)
+    }
+  }
+)
 </script>
 
 <template>
